@@ -88,24 +88,21 @@
         }
         #gesture-popup {
             position: fixed;
-            top: 50%;
+            bottom: 80px;
             left: 50%;
-            transform: translate(-50%, -50%) scale(0.88);
-            background: rgba(5, 5, 5, 0.90);
-            border: 1px solid rgba(0, 240, 255, 0.35);
-            border-radius: 20px;
-            padding: 30px 60px;
+            transform: translateX(-50%) scale(0.88);
+            background: none;
+            border: none;
+            padding: 0;
             text-align: center;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.35s ease, transform 0.35s ease;
-            backdrop-filter: blur(24px);
             z-index: 999;
-            box-shadow: 0 0 50px rgba(0, 240, 255, 0.12), 0 0 100px rgba(255, 0, 127, 0.07);
         }
         #gesture-popup.show {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
+            opacity: 0.85;
+            transform: translateX(-50%) scale(1);
         }
         #popup-gesture {
             font-size: 32px;
@@ -115,11 +112,13 @@
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
+            text-shadow: none;
+            filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.4));
         }
         #popup-effect {
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.72);
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
             letter-spacing: 1px;
         }
     </style>
