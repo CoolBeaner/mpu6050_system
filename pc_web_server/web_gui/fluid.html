@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMU 手势识别演示系统</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui-overlay {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            color: rgba(255, 255, 255, 0.85);
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            
+            pointer-events: auto;
+            
+            font-size: 13px;
+            line-height: 1.5;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 22px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            max-width: 320px;
+
+            opacity: 0;
+            
+            transform: translateX(-15px);
+            
+            /* 设置 0.3 秒的动画阻尼 */
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        #ui-overlay:hover {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        h1 {
+            margin: 0 0 5px 0;
+            font-size: 18px;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, #ff007f, #00f0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .section-title {
+            color: #aaaaaa;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 10px 0 4px 0;
+        }
+        .key {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #00f0ff;
+            font-weight: bold;
+        }
+        .gesture {
+            display: inline-block;
+            background: rgba(255, 0, 127, 0.15);
+            border: 1px solid rgba(255, 0, 127, 0.4);
+            padding: 1px 7px;
+            border-radius: 4px;
+            color: #ff4fa0;
+            font-weight: bold;
+            font-size: 12px;
+            margin-right: 5px;
+            white-space: nowrap;
+        }
+        #status {
+            margin-top: 15px;
+            color: #ff007f;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        #gesture-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.88);
+            background: rgba(5, 5, 5, 0.90);
+            border: 1px solid rgba(0, 240, 255, 0.35);
+            border-radius: 20px;
+            padding: 30px 60px;
+            text-align: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.35s ease, transform 0.35s ease;
+            backdrop-filter: blur(24px);
+            z-index: 999;
+            box-shadow: 0 0 50px rgba(0, 240, 255, 0.12), 0 0 100px rgba(255, 0, 127, 0.07);
+        }
+        #gesture-popup.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #popup-gesture {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            background: linear-gradient(45deg, #ff007f, #00f0ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+        #popup-effect {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.72);
+            letter-spacing: 1px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="ui-overlay">
+        <h1>IMU 手势识别演示</h1>
+        <div>传感器: <b>MPU6050 IMU 手势识别系统</b></div>
+        <hr style="border:none; border-top:1px solid rgba(255,255,255,0.1); margin:10px 0;">
+
+        <div class="section-title">单动作识别</div>
+        <div><span class="gesture">正圆</span>激活向心黑洞坍缩状态</div>
+        <div><span class="gesture">逆圆</span>引力大爆炸冲击波爆发</div>
+        <div><span class="gesture">正三角</span>克利福德奇异吸引子 · 空间解构</div>
+        <div><span class="gesture">倒三角</span>开启 / 解除全局重力塌陷</div>
+        <div><span class="gesture">闪电</span>流体时空调节 </div>
+        <div><span class="gesture">无穷</span>绝对零度冻结</div>
+        <div><span class="gesture">横线</span>切换调色盘</div>
+
+        <div class="section-title">2动作连招</div>
+        <div><span class="gesture">倒三角 → 正圆</span>赛博霓虹数字故障过载 (开/关)</div>
+        <div><span class="gesture">正三角 → 正圆</span>引力透镜过载 · 时空曲率对折 (开/关)</div>
+        <div><span class="gesture">闪电 → 正圆</span>量子基因演变 · 双螺旋矩阵 (开/关)</div>
+
+        <div class="section-title">3动作连招</div>
+        <div><span class="gesture">无穷 → 逆圆 → 正三角</span>镜像维度矩阵 (开/关)</div>
+        <div><span class="gesture">无穷 → 逆圆 → 倒三角</span>混沌噪声沙尘暴瓦解流线 (开/关)</div>
+
+        <div class="section-title">系统指令</div>
+        <div>按 <span class="key">9</span> 键：速度色散与幽暗微光切换</div>
+
+        <div id="status">系统状态: 等待手势识别</div>
+    </div>
+
+    <div id="gesture-popup">
+        <div id="popup-gesture"></div>
+        <div id="popup-effect"></div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        // --- 1. 初始化场景、相机、渲染器 ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050505, 0.005);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        let camRadius = 170;
+        let camTheta = 0;
+        let camPhi = 0.05;
+        updateCameraPosition();
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        // --- 2. 创建生成粒子发光纹理 ---
+        function createParticleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.1, 'rgba(255,255,255,0.9)');
+            gradient.addColorStop(0.3, 'rgba(255,255,255,0.0)');
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- 3. 构建粒子几何体 ---
+        const particleCount = 300000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const randoms = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount; i++) {
+            positions[i * 3] = (Math.random() - 0.5) * 120;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 120;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 120;
+
+            randoms[i * 3] = Math.random();
+            randoms[i * 3 + 1] = Math.random();
+            randoms[i * 3 + 2] = Math.random();
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 3));
+
+        // --- 4. 终极 GPU 矢量场着色器 ---
+        const vertexShader = `
+            uniform float uTime;
+            uniform float uSpeed;
+            uniform float uExplosion;
+            uniform int uPalette;
+            uniform float uTwist;
+            uniform float uGravity;
+            uniform float uDimMode;
+            uniform float uMirror;
+            uniform float uStretch;
+            uniform float uNoise;
+            uniform float uFlatten;
+            uniform float uGlitch;
+            
+            attribute vec3 aRandom;
+            varying vec3 vColor;
+            varying float vAlpha;
+
+            // 纯GPU高频湍流噪声发生器
+            float noise3d(vec3 p) {
+                return sin(p.x * 12.0 + uTime) * cos(p.y * 11.0 + uTime) * sin(p.z * 13.0 + uTime);
+            }
+
+            vec3 getFluidVelocity(vec3 p, float t) {
+				vec3 v = vec3(0.0);
+    
+				// 引入流体力学中的涡环（Vortex Ring）微分方程
+				float r2 = p.x * p.x + p.z * p.z + 1.0;
+				v.x = -p.z * (1.0 / sqrt(r2)) * sin(p.y * 0.02 + t);
+				v.z =  p.x * (1.0 / sqrt(r2)) * sin(p.y * 0.02 + t);
+				v.y =  cos(sqrt(r2) * 0.05 - t * 2.0) * 2.0;
+				
+				// 叠加高频 Curl Noise（卷曲噪声），让粒子拉出极细的赛博丝线
+				v.x += 0.5 * sin(p.y * 0.15 + t) * cos(p.z * 0.12 - t) * aRandom.x;
+				v.y += 0.5 * sin(p.z * 0.15 - t) * cos(p.x * 0.12 + t) * aRandom.y;
+				v.z += 0.5 * sin(p.x * 0.15 + t) * cos(p.y * 0.12 - t) * aRandom.z;
+				return v;
+            }
+
+            void main() {
+                vec3 transformed = position;
+
+                // [动作1] 空间镜像矩阵
+                if (uMirror > 0.01) {
+                    transformed.x = mix(transformed.x, abs(transformed.x), uMirror);
+                    transformed.z = mix(transformed.z, abs(transformed.z), uMirror * 0.6);
+                }
+
+                float timeOffset = uTime * uSpeed * 0.5;
+                vec3 fluidForce = getFluidVelocity(transformed, timeOffset);
+                
+                // [动作4] 混沌噪声风暴
+                if (uNoise > 0.01) {
+                    fluidForce += vec3(
+                        noise3d(transformed * 0.04),
+                        noise3d(transformed * 0.04 + 1.0),
+                        noise3d(transformed * 0.04 + 2.0)
+                    ) * uNoise * 2.5;
+                }
+
+                transformed += fluidForce * 15.0;
+
+                // [动作6] 大爆炸 / 向心坍缩
+                if(uExplosion != 0.0) {
+                    float dist = length(position);
+                    vec3 expDir = normalize(position + fluidForce * 5.0);
+                    float wave = sin(dist * 0.1 - uTime * 5.0) * 0.5 + 0.5;
+                    transformed += expDir * uExplosion * 40.0 * (1.0 / (dist * 0.02 + 1.0)) * wave;
+                }
+
+				// [动作3] 多维空间扭曲气旋
+				if (uTwist > 0.01) {
+					float angle = transformed.y * 0.04 * uTwist;
+					float cosA = cos(angle);
+					float sinA = sin(angle);
+					float nx = transformed.x * cosA - transformed.z * sinA;
+					float nz = transformed.x * sinA + transformed.z * cosA;
+					transformed.x = nx;
+					transformed.z = nz;
+				}
+
+				// [动作2] 超光速面条化拉伸
+				if (uStretch > 0.01) {
+					transformed.z += fluidForce.z * uStretch * 60.0;
+					transformed.x += fluidForce.x * uStretch * 10.0;
+				}
+
+				// [动作5] 星系吸积盘空间扁平化
+				if (uFlatten > 0.01) {
+					transformed.y = mix(transformed.y, sin(transformed.x * 0.05 + uTime) * 3.0, uFlatten);
+				}
+
+				// [动作7] 重力塌陷
+				transformed.y -= uGravity * 40.0;
+
+				// [动作10] 霓虹数字故障位移
+				if (uGlitch > 0.01) {
+					float glitchStep = floor(uTime * 24.0);
+					if (sin(glitchStep + aRandom.y * 50.0) > 0.85) {
+						transformed.x += sin(glitchStep) * 20.0 * uGlitch;
+						transformed.z += cos(glitchStep) * 20.0 * uGlitch;
+					}
+				}
+
+                vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
+				if (uTwist > 0.01) {
+                    float ax = transformed.x;
+                    float ay = transformed.y;
+                    float az = transformed.z;
+                    // 克利福德混沌映射空间方程
+                    transformed.x = mix(ax, sin(-1.4 * ay) + 1.6 * cos(-1.4 * ax), uTwist * 15.0);
+                    transformed.y = mix(ay, sin(1.6 * ax) + 0.7 * cos(1.6 * az), uTwist * 15.0);
+                    transformed.z = mix(az, sin(az * 0.05) * 20.0, uTwist);
+                }
+
+                // 【全新大招 2】 量子双螺旋湮灭矩阵 (对应后面的 uStretch 变量升级)
+                // 剥夺粒子原本的流体身份，强制将所有粒子重构成两条相互缠绕、高速自转的 DNA 双螺旋因果链！
+                if (uStretch > 0.01) {
+                    float helixAngle = position.y * 0.12 + uTime * 4.0;
+                    float radius = 25.0 + sin(position.y * 0.05) * 10.0;
+                    vec3 helixPos;
+                    // 判断粒子奇偶性，分流到两条不同螺旋轨道上
+                    if (aRandom.x > 0.5) {
+                        helixPos = vec3(cos(helixAngle) * radius, position.y, sin(helixAngle) * radius);
+                    } else {
+                        helixPos = vec3(cos(helixAngle + 3.1415) * radius, position.y, sin(helixAngle + 3.1415) * radius);
+                    }
+                    transformed = mix(transformed, helixPos, uStretch);
+                }
+
+                // 【全新大招 3】 引力透镜 · 多维四维超立方体坍缩 (对应后面的 uFlatten 变量升级)
+                // 模拟爱因斯坦引力透镜效应，空间直接发生几何对折，粒子形成空心四维矩阵外壳
+                if (uFlatten > 0.01) {
+                    float r = length(position) + 0.1;
+                    vec3 spherePos = normalize(position) * 45.0; // 强行束缚在 45 码半径的绝对球面上
+                    transformed = mix(transformed, spherePos, uFlatten);
+                    // 叠加球面高频波纹波动
+                    transformed += normalize(transformed) * sin(r * 0.2 - uTime * 8.0) * 4.0 * uFlatten;
+                }
+                gl_Position = projectionMatrix * mvPosition;
+				
+				// 尺寸动态解算
+				gl_PointSize = (4.0 + sin(uTime + aRandom.x * 6.28) * 0.5) * (300.0 / -mvPosition.z) * uDimMode;
+                if (uGlitch > 0.4 && sin(uTime * 40.0 + aRandom.z * 10.0) > 0.2) {
+                    gl_PointSize *= 2.2;
+                }
+
+                float blend = clamp((transformed.y + 60.0) / 120.0, 0.0, 1.0);
+                float speedFactor = length(fluidForce);
+
+                vec3 baseColor = vec3(0.0);
+                if (uPalette == 0) {
+                    baseColor = mix(vec3(1.0, 0.0, 0.5), vec3(0.0, 0.94, 1.0), blend + sin(uTime * 0.5) * 0.2);
+                } else if (uPalette == 1) {
+                    baseColor = mix(vec3(0.9, 0.1, 0.0), vec3(1.0, 0.8, 0.0), blend);
+                    baseColor += vec3(speedFactor * 0.2, 0.0, 0.0);
+                } else {
+                    baseColor = mix(vec3(0.0, 0.1, 0.8), vec3(0.0, 1.0, 0.4), blend);
+                }
+
+				// [动作9] 速度色散效应 (高级色散重影)
+				vColor = baseColor;
+				if (uDimMode < 0.9 && speedFactor > 0.3) {
+					vColor.r += sin(transformed.x * 0.2) * 0.3 * speedFactor;
+					vColor.b += cos(transformed.z * 0.2) * 0.3 * speedFactor;
+				}
+
+                vAlpha = smoothstep(0.0, 0.3, 1.0 - (length(transformed) / 150.0));
+            }
+        `;
+
+        const fragmentShader = `
+            uniform sampler2D uTexture;
+            varying vec3 vColor;
+            varying float vAlpha;
+
+            void main() {
+                vec4 texColor = texture2D(uTexture, gl_PointCoord);
+                if (texColor.a < 0.01) discard;
+                // 完美降噪暗化，呈现高级微光艺术感
+                gl_FragColor = vec4(vColor * texColor.rgb * 1.0, texColor.a * vAlpha);
+            }
+        `;
+
+        const uniforms = {
+            uTime: { value: 0.0 },
+            uSpeed: { value: 1.0 },
+            uExplosion: { value: 0.0 },
+            uPalette: { value: 0 },
+            uTexture: { value: createParticleTexture() },
+			uTwist: { value: 0.0 },    
+			uGravity: { value: 0.0 },  
+			uDimMode: { value: 1.0 },
+			uMirror: { value: 0.0 },
+			uStretch: { value: 0.0 },
+			uNoise: { value: 0.0 },
+			uFlatten: { value: 0.0 },
+			uGlitch: { value: 0.0 }
+        };
+
+        const material = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        const particleSystem = new THREE.Points(geometry, material);
+        scene.add(particleSystem);
+
+        // --- 5. 纯键盘交互控制状态机 ---
+        let targetSpeed = 1.0;
+        let targetExplosion = 0.0;
+        let currentPalette = 0;
+		let targetTwist = 0.0;
+		let targetGravity = 0.0;
+		let targetDim = 1.0;
+		let targetMirror = 0.0;
+		let targetStretch = 0.0;
+		let targetNoise = 0.0;
+		let targetFlatten = 0.0;
+		let targetGlitch = 0.0;
+
+        const statusText = document.getElementById('status');
+        const gesturePopup = document.getElementById('gesture-popup');
+        const popupGesture = document.getElementById('popup-gesture');
+        const popupEffect = document.getElementById('popup-effect');
+        let popupTimer = null;
+
+        function showGesturePopup(gesture, effect) {
+            popupGesture.innerText = gesture;
+            popupEffect.innerText = effect;
+            if (popupTimer) clearTimeout(popupTimer);
+            gesturePopup.classList.remove('show');
+            void gesturePopup.offsetWidth; // 强制重绘，确保动画重新触发
+            gesturePopup.classList.add('show');
+            popupTimer = setTimeout(() => {
+                gesturePopup.classList.remove('show');
+            }, 2200);
+        }
+
+        window.addEventListener('keydown', (e) => {
+			switch(e.code) {
+				case 'KeyV':
+					targetExplosion = 1.6;
+					updateStatus("逆圆 · 引力大爆炸冲击波");
+					showGesturePopup('逆圆', '引力大爆炸冲击波爆发');
+					setTimeout(() => { targetExplosion = 0.0; }, 400);
+					break;
+
+				case 'KeyC':
+					targetExplosion = -1.3;
+					updateStatus("正圆 · 激活向心黑洞坍缩");
+					showGesturePopup('正圆', '激活向心黑洞坍缩状态');
+					setTimeout(() => { targetExplosion = 0.0; }, 500);
+					break;
+
+				case 'KeyF': /* 复合调节：标准 ➔ 狂暴 ➔ 倒流 */
+					if (targetSpeed === 1.0) {
+						targetSpeed = 6.0;
+						updateStatus("闪电 · 流体速度极速狂暴过载");
+						showGesturePopup('闪电', '流体速度极速狂暴过载');
+					} else if (targetSpeed === 6.0) {
+						targetSpeed = -1.5;
+						updateStatus("闪电 · 逆天改命 · 时空全面倒流");
+						showGesturePopup('闪电', '逆天改命 · 时空全面倒流');
+					} else {
+						targetSpeed = 1.0;
+						updateStatus("闪电 · 时间轴重归正常层流");
+						showGesturePopup('闪电', '时间轴重归正常层流');
+					}
+					break;
+
+				case 'KeyG':
+					targetGravity = (targetGravity === 0.0) ? 1.6 : 0.0;
+					if (targetGravity > 0) {
+						updateStatus("倒三角 · 重力塌陷场建立");
+						showGesturePopup('倒三角', '全局重力塌陷场建立');
+					} else {
+						updateStatus("倒三角 · 摆脱引力束缚");
+						showGesturePopup('倒三角', '摆脱引力束缚');
+					}
+					break;
+
+				case 'KeyT':
+					targetTwist = (targetTwist === 0.0) ? 1.0 : 0.0;
+					if (targetTwist > 0) {
+						updateStatus("正三角 · 激活克利福德奇异吸引子 · 空间解构");
+						showGesturePopup('正三角', '[大招] 克利福德奇异吸引子 · 空间解构');
+					} else {
+						updateStatus("正三角 · 恢复正常态");
+						showGesturePopup('正三角', '空间解构解除 · 恢复正常态');
+					}
+					break;
+
+				case 'Digit9':
+					targetDim = (targetDim === 1.0) ? 0.35 : 1.0;
+					updateStatus(targetDim < 1.0 ? "幽暗微光与高阶速度色散开启" : "恢复标准发光形态");
+					break;
+
+				case 'Digit1':
+					targetMirror = (targetMirror === 0.0) ? 1.0 : 0.0;
+					if (targetMirror > 0) {
+						updateStatus("无穷→逆圆→正三角 · 镜像维度矩阵闭合");
+						showGesturePopup('无穷 → 逆圆 → 正三角', '镜像维度矩阵闭合');
+					} else {
+						updateStatus("无穷→逆圆→正三角 · 镜像矩阵解离");
+						showGesturePopup('无穷 → 逆圆 → 正三角', '镜像矩阵解离');
+					}
+					break;
+
+				case 'Digit5':
+					targetStretch = (targetStretch === 0.0) ? 1.0 : 0.0;
+					if (targetStretch > 0) {
+						updateStatus("闪电→正圆 · 启动量子基因演变 · 双螺旋矩阵");
+						showGesturePopup('闪电 → 正圆', '[大招] 量子基因演变 · 双螺旋矩阵');
+					} else {
+						updateStatus("闪电→正圆 · 退出双螺旋");
+						showGesturePopup('闪电 → 正圆', '双螺旋矩阵解除');
+					}
+					break;
+
+				case 'Digit2':
+					targetNoise = (targetNoise === 0.0) ? 1.6 : 0.0;
+					if (targetNoise > 0) {
+						updateStatus("无穷→逆圆→倒三角 · 混沌噪声沙尘暴瓦解流线");
+						showGesturePopup('无穷 → 逆圆 → 倒三角', '混沌噪声沙尘暴瓦解流线');
+					} else {
+						updateStatus("无穷→逆圆→倒三角 · 噪声消散，秩序重构");
+						showGesturePopup('无穷 → 逆圆 → 倒三角', '噪声消散 · 秩序重构');
+					}
+					break;
+
+				case 'Digit4':
+					targetFlatten = (targetFlatten === 0.0) ? 1.0 : 0.0;
+					if (targetFlatten > 0) {
+						updateStatus("正三角→正圆 · 引力透镜过载 · 时空曲率对折");
+						showGesturePopup('正三角 → 正圆', '[大招] 引力透镜过载 · 时空曲率对折');
+					} else {
+						updateStatus("正三角→正圆 · 释放空间维度");
+						showGesturePopup('正三角 → 正圆', '空间维度释放');
+					}
+					break;
+
+				case 'Digit3':
+					targetGlitch = (targetGlitch === 0.0) ? 0.4 : 0.0;
+					if (targetGlitch > 0) {
+						updateStatus("倒三角→正圆 · 赛博霓虹数字故障过载");
+						showGesturePopup('倒三角 → 正圆', '赛博霓虹数字故障过载');
+					} else {
+						updateStatus("倒三角→正圆 · 消除系统数码故障");
+						showGesturePopup('倒三角 → 正圆', '数码故障消除');
+					}
+					break;
+
+				case 'KeyI':
+					targetSpeed = 0.0;
+					updateStatus("无穷 · 绝对零度 · 粒子时空冻结");
+					showGesturePopup('无穷', '绝对零度 · 粒子时空冻结');
+					break;
+
+                case 'KeyL':
+                    currentPalette = (currentPalette + 1) % 3;
+                    uniforms.uPalette.value = currentPalette;
+                    updateStatus(`横线 · 调色盘切换至样式 [${currentPalette}]`);
+                    showGesturePopup('横线', `调色盘切换至样式 ${currentPalette}`);
+                    break;
+			}
+			updateCameraPosition();
+		});
+
+        function updateStatus(text) {
+            statusText.innerText = `系统状态: ${text}`;
+        }
+
+        function updateCameraPosition() {
+            camera.position.x = camRadius * Math.sin(camPhi) * Math.sin(camTheta);
+            camera.position.y = camRadius * Math.cos(camPhi);
+            camera.position.z = camRadius * Math.sin(camPhi) * Math.cos(camTheta);
+            camera.lookAt(0, 0, 0);
+        }
+
+        // --- 6. 核心渲染与动力学阻尼系统 ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+            uniforms.uTime.value = elapsedTime;
+			
+			// 10大动作独立的缓动因子（数学高频插值）
+			uniforms.uSpeed.value += (targetSpeed - uniforms.uSpeed.value) * 0.06;
+			uniforms.uExplosion.value += (targetExplosion - uniforms.uExplosion.value) * 0.1;
+			uniforms.uTwist.value += (targetTwist - uniforms.uTwist.value) * 0.07;
+			uniforms.uGravity.value += (targetGravity - uniforms.uGravity.value) * 0.05;
+			uniforms.uDimMode.value += (targetDim - uniforms.uDimMode.value) * 0.09;
+			uniforms.uMirror.value += (targetMirror - uniforms.uMirror.value) * 0.08;
+			uniforms.uStretch.value += (targetStretch - uniforms.uStretch.value) * 0.08;
+			uniforms.uNoise.value += (targetNoise - uniforms.uNoise.value) * 0.04;
+			uniforms.uFlatten.value += (targetFlatten - uniforms.uFlatten.value) * 0.06;
+			uniforms.uGlitch.value += (targetGlitch - uniforms.uGlitch.value) * 0.15;
+
+            // 保持星云极为微弱的自转底色
+            camTheta += 0.0008 * (uniforms.uSpeed.value + 0.2);
+            updateCameraPosition();
+
+            particleSystem.rotation.y = elapsedTime * 0.015;
+
+            renderer.render(scene, camera);
+        }
+
+        // --- 7. 屏幕缩放自适应 ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+		document.addEventListener('click', () => {
+            // 检查当前系统是不是已经处于全屏状态
+            if (!document.fullscreenElement) {
+                // 如果没有全屏，直接向浏览器申请将整个网页元素拉满全屏
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`[全屏中枢] 浏览器拦截或不支持: ${err.message}`);
+                });
+            }
+        });
+        animate();
+    </script>
+</body>
+</html>

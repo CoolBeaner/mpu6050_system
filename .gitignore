@@ -1,0 +1,34 @@
+# 编译产物
+*.o
+*.a
+*.ko
+*.mod.c
+*.mod
+*.d
+.*.cmd
+
+# 内核模块构建
+modules.order
+Module.symvers
+.tmp_versions/
+
+# 应用程序可执行文件
+app/mpu6050_app
+app/obj/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 训练产物（权重文件较大，按需决定是否上传）
+*.pth
+*.pt
+
+# 数据集（通常不上传原始数据）
+*.npy
+*.csv
+
+# 系统文件
+.DS_Store
+Thumbs.db

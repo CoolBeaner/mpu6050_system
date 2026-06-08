@@ -1,0 +1,10 @@
+# driver/.gitignore
+*.o
+*.ko
+*.mod.c
+*.mod
+*.a
+.*.cmd
+modules.order
+Module.symvers
+.tmp_versions/

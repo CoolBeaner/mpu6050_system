@@ -1,0 +1,73 @@
+
+/dts-v1/;
+#include "sun8i-h3.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+&usb_otg {
+	//dr_mode = "otg";
+    /* MPU6050 simulate usb hum */
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
+&usbphy {
+	usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
+    /* MPU6050 simulate usb hum */
+	//usb0_vbus-supply = <&reg_usb0_vbus>;
+    /* MPU6050 simulate usb hum */
+    dr_mode = "peripheral";
+	/* VBUS on USB host ports are always on */
+	status = "okay";
+};
+
+/* MPU6050 simulate usb hum */
+&ehci0 {
+    status = "disabled";
+};
+
+&ohci0 {
+    status = "disabled";
+};
+
+/* MPU6050 */
+&i2c0 {
+    status = "okay";
+    clock-frequency = <400000>;
+    pinctrl-names = "default", "gpio";
+    pinctrl-0 = <&i2c0_pins>;
+    pinctrl-1 = <&i2c0_gpio_pins>;
+
+    /* PA11 -> SCL */
+    scl-gpios = <&pio 0 11 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>; 
+    /* PA12 -> SDA */
+    sda-gpios = <&pio 0 12 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+
+    mpu6050@68 {
+        compatible = "invensense,mpu6050";
+        /* I2C address: 0x68*/
+        reg = <0x68>;
+
+        interrupt-parent = <&pio>;
+        interrupts = <0 7 IRQ_TYPE_EDGE_RISING>;
+
+        pinctrl-names = "default";
+        pinctrl-0 = <&mpu6050_int_pin>;
+    };
+};
+
+&pio {
+    mpu6050_int_pin: mpu6050_int_pin {
+        pins = "PA7";
+        function = "irq";
+        bias-pull-up;
+    };
+
+    i2c0_gpio_pins: i2c0_gpio_pins {
+        pins = "PA11", "PA12";
+        function = "gpio_in";
+        bias-pull-up;
+    };
+};
