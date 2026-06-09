@@ -217,7 +217,7 @@ pip install torch numpy matplotlib scipy
 mpu6050_system_release/
 ├── driver/                     内核驱动模块
 │   ├── mpu6050_drv.c           驱动主文件（中断、FIFO、热插拔）
-│   └── include/
+│   ├── include/
 │   │   ├── mpu6050.h           驱动内部数据结构
 │   │   └── mpu6050_uapi.h      用户空间 ioctl / 数据结构接口
 │   └─── Makefile               驱动编译脚本
