@@ -221,6 +221,7 @@ mpu6050_system_release/
 │   │   ├── mpu6050.h           驱动内部数据结构
 │   │   └── mpu6050_uapi.h      用户空间 ioctl / 数据结构接口
 │   └─── Makefile               驱动编译脚本
+│
 ├── app/                        用户空间应用程序
 │   ├── src/
 │   │   ├── main.c              多线程入口
